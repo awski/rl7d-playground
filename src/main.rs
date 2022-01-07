@@ -1,4 +1,7 @@
+use std::slice::Windows;
+
 use tcod::Console;
+use tcod::console::Offscreen;
 use tcod::input::{Key, KeyCode};
 
 const WINDOW_WIDTH: i32 = 80;
@@ -6,7 +9,8 @@ const WINDOW_HEIGHT: i32 = 50;
 const FPS_LIMIT: u32 = 20;
 
 struct Tcod {
-    root: tcod::console::Root
+    root: tcod::console::Root,
+    con: tcod::console::Offscreen
 }
 
 fn main() {
@@ -16,7 +20,8 @@ fn main() {
             .font_type(tcod::FontType::Greyscale)
             .size(WINDOW_WIDTH as i32, WINDOW_HEIGHT as i32)
             .title("rl7d playground")
-            .init()
+            .init(),
+        con: Offscreen::new(WINDOW_WIDTH, WINDOW_HEIGHT)
     };
     tcod::system::set_fps(FPS_LIMIT as i32);
 
@@ -24,9 +29,20 @@ fn main() {
     let mut player_y: i32 = WINDOW_HEIGHT / 2;
 
     while !ctx.root.window_closed() {
-        ctx.root.set_default_foreground(tcod::colors::WHITE);
-        ctx.root.clear();
-        ctx.root.put_char(player_x, player_y, '@', tcod::console::BackgroundFlag::None);
+        ctx.con.set_default_foreground(tcod::colors::WHITE);
+        ctx.con.clear();
+        ctx.con.put_char(player_x, player_y, '@', tcod::console::BackgroundFlag::None);
+
+        tcod::console::blit(
+            &ctx.con,
+            (0,0),
+            (WINDOW_WIDTH, WINDOW_HEIGHT),
+            &mut ctx.root,
+            (0,0),
+            1.0,
+            1.0
+        );
+
         ctx.root.flush();
         let exit = handle_keys(&mut ctx, &mut player_x, &mut player_y);
         if exit {
