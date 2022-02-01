@@ -2,6 +2,7 @@ use tcod::{Console, Color, FontLayout, FontType};
 use tcod::input::{Key, KeyCode};
 use tcod::console::{Root, Offscreen, BackgroundFlag, blit};
 use tcod::colors::*;
+use rand::Rng;
 
 const WINDOW_WIDTH: i32 = 80;
 const WINDOW_HEIGHT: i32 = 50;
@@ -11,6 +12,10 @@ const MAP_WIDTH: i32 = 80;
 const MAP_HEIGHT: i32 = 45;
 const WALL_DARK_COLOR: Color = Color { r: 0, g: 0, b: 100 };
 const GROUND_DARK_COLOR: Color = Color { r: 50, g: 50, b: 150 };
+
+const ROOM_MAX_SIZE: i32 = 10;
+const ROOM_MIN_SIZE: i32 = 6;
+const MAX_ROOMS: i32 = 30;
 
 struct Tcod {
     root: Root,
@@ -48,7 +53,6 @@ struct Tile {
     pub fn empty() -> Self {
         Tile {blocked: false, block_sight: false}
     }
-
     pub fn wall() -> Self {
         Tile {blocked: true, block_sight: true}
     }
@@ -67,6 +71,17 @@ struct Rect {
 } impl Rect {
     pub fn new(x: i32, y: i32, w: i32, h: i32) -> Self {
         Rect { x1: x, y1: y, x2: x + w, y2: y + h }
+    }
+    pub fn center(&self) -> (i32, i32) {
+        let center_x = (self.x1 + self.x2) / 2;
+        let center_y = (self.y1 + self.y2) / 2;
+        (center_x, center_y)
+    }
+    pub fn intersects_with(&self, other: &Rect) -> bool {
+        (self.x1 <= other.x2)
+            && (self.x2 >= other.x1)
+            && (self.y1 <= other.y2)
+            && (self.y2 >= other.y1)
     }
 }
 
@@ -87,8 +102,6 @@ fn main() {
     let game = Game { map: make_map() };
     let player = Object::new(25, 23, '@', WHITE);
     let mut objects = [player];
-    // let npc = Object::new(WINDOW_WIDTH / 2 - 5, WINDOW_HEIGHT / 2, '@', YELLOW);
-    // let mut objects = [player, npc];
 
     while !ctx.root.window_closed() {
         ctx.con.clear();
@@ -124,11 +137,36 @@ fn toggle_fullscreen(ctx: &mut Tcod) {
 
 fn make_map() -> Map {
     let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
+    let mut rooms = vec![];
 
-    create_map(Rect::new(20, 15, 10, 15), &mut map);
-    create_map(Rect::new(50, 15, 10, 15), &mut map);
+    for _ in 0..MAX_ROOMS {
+        let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
+        let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
 
-    create_h_tunnel(25, 55, 23, &mut map);
+        let x = rand::thread_rng().gen_range(0..MAP_WIDTH - w);
+        let y = rand::thread_rng().gen_range(0..MAP_HEIGHT - h);
+
+        let new_room = Rect::new(x, y, w, h);
+        if rooms.iter().any(|room| new_room.intersects_with(room)) {
+            continue;
+        }
+
+        create_room(new_room, &mut map);
+        let (new_x, new_y) = new_room.center();
+
+        if !rooms.is_empty() {
+            let (prev_x, prev_y) = rooms[rooms.len() - 1].center();
+            if rand::random() {
+                create_h_tunnel(prev_x, new_x, prev_y, &mut map);
+                create_v_tunnel(prev_y, new_y, new_x, &mut map);
+            } else {
+                create_h_tunnel(prev_x, new_x, new_y, &mut map);
+                create_v_tunnel(prev_y, new_y, prev_x, &mut map);
+            }
+        }
+
+        rooms.push(new_room)
+    }
 
     map
 }
@@ -171,5 +209,13 @@ fn create_h_tunnel(x1: i32, x2: i32, y: i32, map: &mut Map) {
 fn create_v_tunnel(y1: i32, y2: i32, x: i32, map: &mut Map) {
     for y in std::cmp::min(y1, y2)..(std::cmp::max(y1, y2) + 1) {
         map[x as usize][y as usize] = Tile::empty();
+    }
+}
+
+fn create_room(room: Rect, map: &mut Map) {
+    for x in (room.x1 + 1)..room.x2 {
+        for y in (room.y1 + 1)..room.y2 {
+            map[x as usize][y as usize] = Tile::empty();
+        }
     }
 }
