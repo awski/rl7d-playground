@@ -122,22 +122,13 @@ fn toggle_fullscreen(ctx: &mut Tcod) {
     ctx.root.set_fullscreen(!is_fullscreen)
 }
 
-fn xx_make_map() -> Map {
-    let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
-
-    map[2][2] = Tile::wall();
-    map[5][5] = Tile::wall();
-
-    map
-}
-
 fn make_map() -> Map {
     let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
-    let room1 = Rect::new(20, 15, 10, 15);
-    let room2 = Rect::new(50, 15, 10, 15);
-    create_map(room1, &mut map);
-    create_map(room2, &mut map);
+    create_map(Rect::new(20, 15, 10, 15), &mut map);
+    create_map(Rect::new(50, 15, 10, 15), &mut map);
+
+    create_h_tunnel(25, 55, 23, &mut map);
 
     map
 }
@@ -169,4 +160,16 @@ fn render_all(ctx: &mut Tcod, game: &Game, objects: &[Object]) {
     }
 
     blit(&ctx.con, (0,0), (MAP_HEIGHT, MAP_WIDTH), &mut ctx.root, (0,0), 1.0, 1.0);
+}
+
+fn create_h_tunnel(x1: i32, x2: i32, y: i32, map: &mut Map) {
+    for x in std::cmp::min(x1, x2)..(std::cmp::max(x1, x2) + 1) {
+        map[x as usize][y as usize] = Tile::empty();
+    }
+}
+
+fn create_v_tunnel(y1: i32, y2: i32, x: i32, map: &mut Map) {
+    for y in std::cmp::min(y1, y2)..(std::cmp::max(y1, y2) + 1) {
+        map[x as usize][y as usize] = Tile::empty();
+    }
 }
